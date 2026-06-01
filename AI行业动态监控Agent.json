@@ -1,0 +1,218 @@
+{
+  "name": "AI行业动态监控Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "id": "e70b5ce4-8099-4789-9df2-d80a7238575e",
+      "name": "定时触发",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://www.36kr.com/information/AI/",
+        "options": {}
+      },
+      "id": "0a6c3b30-4a36-46a4-9b72-6f056905785e",
+      "name": "资讯抓取",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=请基于原文完成内容处理：\n1. 过滤广告、推广、无效冗余内容，禁止编造信息，杜绝AI幻觉；\n2. 固定输出格式：【标题｜发布时间｜核心要点（不超过3条）】；\n3. 内容精简，整体字数控制在300字以内。\n\n资讯原文：{{ $json.data }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        576,
+        0
+      ],
+      "id": "1ebff71d-1fc6-4665-89f3-349e2193dfc6",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatDeepSeek",
+      "typeVersion": 1,
+      "position": [
+        576,
+        208
+      ],
+      "id": "acc04d27-d48c-4ee2-b549-d71f9f6db5cb",
+      "name": "DeepSeek Chat Model",
+      "credentials": {
+        "deepSeekApi": {
+          "id": "gkEWbVTMMwjjMczn",
+          "name": "DeepSeek account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "clean_text",
+              "cssSelector": "p"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        336,
+        368
+      ],
+      "id": "af41528d-b1b2-4028-8c03-76488b2ffbe9",
+      "name": "HTML"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "98fce415-780c-49fc-85ab-0082890672d1",
+              "name": "final_prompt",
+              "value": "=请基于原文完成内容处理： 1. 过滤广告、推广、无效冗余内容，禁止编造信息，杜绝AI幻觉； 2. 固定输出格式：【标题｜发布时间｜核心要点（不超过3条）】； 3. 内容精简，整体字数控制在300字以内。  资讯原文：{{ $json.clean_text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        544,
+        368
+      ],
+      "id": "2bab1300-f885-4207-b39c-31d1428b6b4c",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://open.feishu.cn/open-apis/bot/v2/hook/d6cf28ee-95e7-4885-a5b6-b29fbb51fde3",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={   \"msg_type\": \"interactive\",   \"card\": {     \"config\": {       \"wide_screen_mode\": true     },     \"elements\": [       {         \"tag\": \"div\",         \"text\": {           \"content\": \"📰 **今日行业资讯摘要**\\n{{ $json.output.replace(/[\\u0000-\\u001F\\u007F-\\u009F]/g, '') }}\",           \"tag\": \"lark_md\"         }       }     ]   } }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        928,
+        0
+      ],
+      "id": "5c7cc2ab-bd12-4273-a5ce-e6a353e5baef",
+      "name": "HTTP Request"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "定时触发": {
+      "main": [
+        [
+          {
+            "node": "资讯抓取",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "资讯抓取": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "4c7824c8-e1e9-4d3e-b373-812f6766ca2f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b95e06272c0ec02f5c560226532aa11d0b3281d6af0d1aeb05ccffad589e9b20"
+  },
+  "id": "eIDQlIsmhJvF8ujR",
+  "tags": []
+}
